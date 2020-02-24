@@ -5,6 +5,7 @@ public final class API {
     var port: Int
     let htdocs: String
 
+    var routeSpecs = [RouteSpec]()
     var router = Router()
     var authenticator = Authenticator()
 
@@ -19,11 +20,14 @@ public final class API {
     }
 
     public func addRoutes(@RouteBuilder _ build: () -> ProcessorCollection) throws {
+        self.routeSpecs += build().specs
         try self.router.append(build())
     }
 
     public func run() {
         do {
+            self.finalize()
+
             let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
             let threadPool = BlockingIOThreadPool(numberOfThreads: 6)
             threadPool.start()
@@ -72,5 +76,11 @@ public final class API {
         catch {
             print("Error starting server: \(error)")
         }
+    }
+}
+
+private extension API {
+    func finalize() {
+        self.routeSpecs.removeAll()
     }
 }

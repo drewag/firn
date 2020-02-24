@@ -22,6 +22,7 @@ public final class RequestProcessor<Input, Output>: AnyRequestProcessor {
         self.before = before
         self.process = process
         self.newStatus = newStatus
+        self._routingHelper.outputType = Output.self
     }
 
     public func updating(response: Response, for request: inout Request) throws -> Response {

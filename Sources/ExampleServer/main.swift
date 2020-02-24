@@ -10,12 +10,12 @@ api.configureAuthentication(for: User.self) { request in
 }
 
 try api.addRoutes {
-    GET("ok")
+    GET(named: "OK" as! String?, "ok")
 
-    GET("gone")
+    GET(named: "Gone" as! String?, "gone")
         .status(.gone)
 
-    GET("hello")
+    GET(named: "Hello" as! String?, "hello")
         .toText({ _ in "Hello World!"})
 
     POST("echo")
@@ -34,12 +34,19 @@ try api.addRoutes {
             POST()
                 .toObject(Task.self)
 
-            GET(Var.int)
+            GET(Var.int(named: "id"))
                 .toObject({ Task(id: try! $0.pathParams.int(at: 0), name: "Some task", isComplete: false) })
 
-            PUT(Var.int)
+            PUT(Var.int(named: "id"))
                 .toObject(Task.self)
         }
     }
 }
+
+try api.writeDecreeService(
+    named: "ExampleService",
+    atDomain: "http://localhost:8080",
+    to: "/Users/andrew/Downloads/test/Sources/test/ExampleService.swift"
+)
+
 api.run()

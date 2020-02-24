@@ -7,7 +7,7 @@ struct Router {
     }
 
     var staticChildren = MethodOrganizedDictionary<String,Handler>()
-    var variableChildren = MethodOrganizedDictionary<Var,Handler>()
+    var variableChildren = MethodOrganizedDictionary<Var.Kind,Handler>()
 
     mutating func append(_ collection: ProcessorCollection) throws {
         for spec in collection.specs {
@@ -38,10 +38,10 @@ private extension Router {
                 self.staticChildren.set(value: .route(processor), for: string, and: [method])
             }
             else if let variable = component as? Var {
-                guard self.variableChildren.get(for: variable, by: method) == nil else {
+                guard self.variableChildren.get(for: variable.kind, by: method) == nil else {
                     throw InitializationError.routeConflict
                 }
-                self.variableChildren.set(value: .route(processor), for: variable, and: [method])
+                self.variableChildren.set(value: .route(processor), for: variable.kind, and: [method])
             }
             else {
                 throw InitializationError.unrecognizedPathComponent
@@ -73,8 +73,8 @@ private extension Router {
                 self.staticChildren.set(value: handler, for: string, and: methods.all)
             }
             else if let variable = component as? Var {
-                let (handler, methods) = try update(self.variableChildren.get(for: variable, by: method))
-                self.variableChildren.set(value: handler, for: variable, and: methods.all)
+                let (handler, methods) = try update(self.variableChildren.get(for: variable.kind, by: method))
+                self.variableChildren.set(value: handler, for: variable.kind, and: methods.all)
             }
             else {
                 throw InitializationError.unrecognizedPathComponent
@@ -97,11 +97,11 @@ private extension Router {
         if let staticHandler = self.staticChildren.get(for: component, by: method) {
             handler = staticHandler
         }
-        else if let int = Int(component), let intHandler = self.variableChildren.get(for: .int, by: method) {
+        else if let int = Int(component), let intHandler = self.variableChildren.get(for: Var.Kind.int, by: method) {
             params.append(int)
             handler = intHandler
         }
-        else if let stringHandler = self.variableChildren.get(for: .string, by: method) {
+        else if let stringHandler = self.variableChildren.get(for: Var.Kind.string, by: method) {
             params.append(component)
             handler = stringHandler
         }

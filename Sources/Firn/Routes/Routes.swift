@@ -1,22 +1,42 @@
 import Foundation
 
 public func GET(named name: String? = nil, _ component: PathComponent = "") -> RequestProcessor<Void, EmptyResponseContent>  {
-    let helper = PrivateRequestProcessorInfo(name: name, method: .GET, lastPathComponent: component)
+    let helper = PrivateRequestProcessorInfo(
+        name: name,
+        method: .GET,
+        lastPathComponent: component,
+        inputType: EmptyResponseContent.self
+    )
     return RequestProcessor(helper: helper, before: nil)
 }
 
 public func POST(named name: String? = nil, _ component: PathComponent = "") -> RequestProcessor<Void, DataBuffer>  {
-    let helper = PrivateRequestProcessorInfo(name: name, method: .POST, lastPathComponent: component)
+    let helper = PrivateRequestProcessorInfo(
+        name: name,
+        method: .POST,
+        lastPathComponent: component,
+        inputType: DataBuffer.self
+    )
     return RequestProcessor(helper: helper, before: nil, newStatus: .created)
 }
 
 public func PUT(named name: String? = nil, _ component: PathComponent = "") -> RequestProcessor<Void, DataBuffer>  {
-    let helper = PrivateRequestProcessorInfo(name: name, method: .PUT, lastPathComponent: component)
+    let helper = PrivateRequestProcessorInfo(
+        name: name,
+        method: .PUT,
+        lastPathComponent: component,
+        inputType: DataBuffer.self
+    )
     return RequestProcessor(helper: helper, before: nil)
 }
 
 public func DELETE(named name: String? = nil, _ component: PathComponent = "") -> RequestProcessor<Void, EmptyResponseContent>  {
-    let helper = PrivateRequestProcessorInfo(name: name, method: .DELETE, lastPathComponent: component)
+    let helper = PrivateRequestProcessorInfo(
+        name: name,
+        method: .DELETE,
+        lastPathComponent: component,
+        inputType: EmptyResponseContent.self
+    )
     return RequestProcessor(helper: helper, before: nil, process: nil)
 }
 
