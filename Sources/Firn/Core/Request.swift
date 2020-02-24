@@ -21,7 +21,15 @@ public struct Request {
     }
 
     @discardableResult
-    public mutating func authenticate<User: AnyUser>(_ type: User.Type, validate: ((User) throws -> Bool)? = nil) throws -> User {
+    public mutating func authorizedUser<User: AnyUser>(_ type: User.Type) throws -> User {
+        guard let user = self.authenticatedUser as? User else {
+            throw ServeError.endpointNotConfiguredForAuth
+        }
+        return user
+    }
+
+    @discardableResult
+    mutating func authenticate<User: AnyUser>(_ type: User.Type, validate: ((User) throws -> Bool)? = nil) throws -> User {
         let user = try (self.authenticatedUser as? User) ?? self.authenticator.authenticate(self)
         self.authenticatedUser = user
         guard try validate?(user) ?? true else {

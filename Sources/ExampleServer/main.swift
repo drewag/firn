@@ -6,7 +6,7 @@ api.configureAuthentication(for: User.self) { request in
     guard request.headers["Authorization"].contains("Bearer SECURE") else {
         return nil
     }
-    return User()
+    return User(name: "Username")
 }
 
 try api.addRoutes {
@@ -20,11 +20,13 @@ try api.addRoutes {
 
     POST("echo")
 
-    GET("restricted")
-        .toText({ req in
-            try req.authenticate(User.self)
-            return "Look at you, you're authorized!"
-        })
+    Auth(User.self) {
+        GET("restricted")
+            .toText({ req in
+                let user = try req.authorizedUser(User.self)
+                return "Look at you, \(user.name), you're authorized!"
+            })
+    }
 
     Auth(User.self) {
         Group("tasks") {
@@ -35,7 +37,7 @@ try api.addRoutes {
                 .toObject(Task.self)
 
             GET(Var.int)
-                .toObject({ Task(id: try! $0.pathParams.int(at: 0), name: "Some task", isComplete: false) })
+                .toObject({ Task(id: try $0.pathParams.int(at: 0), name: "Some task", isComplete: false) })
 
             PUT(Var.int)
                 .toObject(Task.self)

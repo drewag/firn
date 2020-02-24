@@ -13,6 +13,7 @@ public enum ServeError: Error, LocalizedError, CustomStringConvertible, CustomDe
 
     case invalidResponseBody(type: String)
 
+    case endpointNotConfiguredForAuth
     case authenticatorNotConfigured(type: String)
     case unauthorized
 
@@ -21,7 +22,7 @@ public enum ServeError: Error, LocalizedError, CustomStringConvertible, CustomDe
     var status: HTTPResponseStatus {
         switch self {
         case .internalServerError, .missingRequest, .databaseNotConfigured,
-             .invalidResponseBody, .authenticatorNotConfigured:
+             .invalidResponseBody, .authenticatorNotConfigured, .endpointNotConfiguredForAuth:
             return .internalServerError
         case .routeNotFound:
             return .notFound
@@ -35,7 +36,7 @@ public enum ServeError: Error, LocalizedError, CustomStringConvertible, CustomDe
     var title: String {
         switch self {
         case .internalServerError, .missingRequest, .databaseNotConfigured,
-             .invalidResponseBody, .authenticatorNotConfigured:
+             .invalidResponseBody, .authenticatorNotConfigured, .endpointNotConfiguredForAuth:
             return "Internal Server Error"
         case .routeNotFound:
             return "Not Found"
@@ -70,6 +71,8 @@ public enum ServeError: Error, LocalizedError, CustomStringConvertible, CustomDe
             return "The response body is of an invalid type `\(type)`."
         case .authenticatorNotConfigured(let type):
             return "An authenticator has not been configured for '\(type)'."
+        case .endpointNotConfiguredForAuth:
+            return "This endpoint is trying to access an authenticated user but it has not been configured for it. You must put the endpoint in an Auth wrapper for that user type."
         }
     }
 
@@ -81,7 +84,7 @@ public enum ServeError: Error, LocalizedError, CustomStringConvertible, CustomDe
             return details
         case .missingRequest, .routeNotFound, .invalidRequestBodyString,
              .unauthorized, .databaseNotConfigured, .invalidResponseBody,
-             .authenticatorNotConfigured:
+             .authenticatorNotConfigured, .endpointNotConfiguredForAuth:
             return nil
         case .invalidRequestBodyObject(let decodingError):
             return "Decoding Error: \(decodingError)"
