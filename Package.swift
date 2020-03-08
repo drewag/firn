@@ -8,6 +8,7 @@ let package = Package(
     platforms: [.macOS(.v10_15)],
     products: [
         .library(name: "Firn", targets: ["Firn"]),
+        .library(name: "SQL", targets: ["SQL"]),
         .executable(name: "ExampleServer", targets: ["ExampleServer"]),
     ],
     dependencies: [
@@ -16,6 +17,9 @@ let package = Package(
     targets: [
         .target(name: "Firn", dependencies: ["NIO","NIOHTTP1"]),
         .testTarget(name: "FirnTests", dependencies: ["Firn"]),
+
+        .target(name: "SQL", dependencies: []),
+        .testTarget(name: "SQLTests", dependencies: ["SQL"]),
 
         .target(name: "ExampleServer", dependencies: ["Firn"]),
     ]
