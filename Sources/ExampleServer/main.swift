@@ -50,7 +50,8 @@ try api.addRoutes {
 
             // Returns a Task with the id in the path e.g. 3 for "/tasks/3"
             GET(Var.int)
-                .toObject({ Task(id: try $0.pathParams.int(at: 0), name: "Some task", isComplete: false) })
+                .toDBObject(Task.self, id: { try $0.pathParams.int(at: 0) })
+//                .toObject({ Task(id: try $0.pathParams.int(at: 0), name: "Some task", isComplete: false) })
 
             // Parses and returns an json representation of a Task
             PUT(Var.int)

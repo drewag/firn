@@ -6,7 +6,7 @@
 //
 
 extension Table {
-    static func select(_ selections: [KeyPath<Self>]) -> SelectQueryBuilder {
+    static func select() -> SelectQueryBuilder {
         return SelectQueryBuilder(modifiers: [
             { $0.from = [.table(self.tableName)]}
         ])
