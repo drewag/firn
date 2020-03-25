@@ -1,6 +1,12 @@
 import Firn
+import SQLBuilder
 
 let api = API()
+
+//let keyPath = \Task.id
+//print(keyPath.sql)
+
+//print(\Task.id == 1)
 
 api.configureAuthentication(for: User.self) { request in
     // An authorization configuration must return a user if the auth is valid.
@@ -10,6 +16,8 @@ api.configureAuthentication(for: User.self) { request in
     }
     return User(name: "Username")
 }
+
+api.configureDatabase(name: "example", username: "example_user")
 
 try api.addRoutes {
     // Returns an empty 200 status
@@ -50,7 +58,7 @@ try api.addRoutes {
 
             // Returns a Task with the id in the path e.g. 3 for "/tasks/3"
             GET(Var.int)
-                .toDBObject(Task.self, id: { try $0.pathParams.int(at: 0) })
+                .toDBObject(Task.self, where: { try \Task.id == $0.pathParams.int(at: 0) })
 //                .toObject({ Task(id: try $0.pathParams.int(at: 0), name: "Some task", isComplete: false) })
 
             // Parses and returns an json representation of a Task

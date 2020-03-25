@@ -1,13 +1,18 @@
 import Foundation
-import SQL
+import SQLBuilder
 
 extension RequestProcessor where Output == EmptyResponseContent {
-    public func toDBObject<Object: Encodable>(_ type: Object.Type, block: @escaping (inout Request) throws -> Int) -> RequestProcessor<EmptyResponseContent, Object> {
+    public func toDBObject<Object: Table>(_ type: Object.Type, where: @escaping (inout Request) throws -> SQLBuilder.Operation) -> RequestProcessor<EmptyResponseContent, Object> {
         return RequestProcessor<EmptyResponseContent, Object>(
             helper: self._routingHelper,
             before: self,
             process: { request, _ in
-                return try block(&request)
+
+                let connection = try request.connectToDB()
+                Object.select()
+
+                fatalError()
+//                return try block(&request)
             }
         )
     }

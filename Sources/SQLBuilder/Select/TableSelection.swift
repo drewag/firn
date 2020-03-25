@@ -6,9 +6,9 @@
 //
 
 extension Table {
-    static func select() -> SelectQueryBuilder {
+    public static func select() -> SelectQueryBuilder {
         return SelectQueryBuilder(modifiers: [
-            { $0.from = [.table(self.tableName)]}
+            { $0.from = [.table(self.tableName)] }
         ])
     }
 }

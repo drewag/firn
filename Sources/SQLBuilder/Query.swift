@@ -16,22 +16,6 @@ enum FromItem: SQLConvertible {
     }
 }
 
-struct GroupingElement: SQLConvertible {
-    let expressions: [Expression]
-
-    var sql: String {
-        return self.expressions.commaSeparated
-    }
-}
-
-struct Expression: SQLConvertible {
-    let components: [SQLConvertible]
-
-    var sql: String {
-        return self.components.spaceSeparated
-    }
-}
-
 struct Function {
     let name: String
     let arguments: [Expression]

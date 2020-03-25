@@ -6,8 +6,9 @@
 //
 
 import Foundation
+import Core
 
-protocol Table {}
+public protocol Table: Reflectable {}
 
 extension Table {
     static var tableName: String {

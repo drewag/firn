@@ -1,6 +1,7 @@
 import Foundation
 import NIO
 import NIOHTTP1
+import PostgreSQL
 
 final class HTTPHandler: ChannelInboundHandler {
     private enum FileIOMethod {
@@ -45,17 +46,20 @@ final class HTTPHandler: ChannelInboundHandler {
     private let router: Router
     private let authenticator: Authenticator
     private var current: (request: Request, response: Response)?
+    private var createConnection: () throws -> PostgreSQLConnection
 
     public init(
         fileIO: NonBlockingFileIO,
         htdocsPath: String,
         router: Router,
-        authenticator: Authenticator
+        authenticator: Authenticator,
+        createConnection: @escaping () throws -> PostgreSQLConnection
     ) {
         self.htdocsPath = htdocsPath
         self.fileIO = fileIO
         self.router = router
         self.authenticator = authenticator
+        self.createConnection = createConnection
     }
 
     private func completeResponse(_ ctx: ChannelHandlerContext, trailers: HTTPHeaders?, promise: EventLoopPromise<Void>?) {
@@ -79,7 +83,11 @@ final class HTTPHandler: ChannelInboundHandler {
             self.keepAlive = request.isKeepAlive
             self.state.requestReceived()
 
-            let request = Request(head: request, authenticator: self.authenticator)
+            let request = Request(
+                head: request,
+                authenticator: self.authenticator,
+                createConnection: self.createConnection
+            )
             let response = Response()
             self.current = (request, response)
         case .body(let buffer):

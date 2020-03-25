@@ -10,7 +10,9 @@ struct TestObject: Codable {
 func createTestRequest(method: HTTPMethod = .GET) -> Request {
     let version = HTTPVersion(major: 1, minor: 1)
     let head = HTTPRequestHead(version: version, method: .GET, uri: "")
-    return Request(head: head, authenticator: Authenticator())
+    return Request(head: head, authenticator: Authenticator(), createConnection: {
+        throw ServeError.databaseNotConfigured
+    })
 }
 
 func createTestResponse(body: Encodable? = nil) throws -> Response {

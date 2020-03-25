@@ -1,4 +1,5 @@
 import NIO
+import PostgreSQL
 
 public final class API {
     var host: String
@@ -7,6 +8,7 @@ public final class API {
 
     var router = Router()
     var authenticator = Authenticator()
+    var database: PostgreSQLDatabase?
 
     public init(host: String = "::1", port: Int = 8080, htdocs: String = "/dev/null") {
         self.host = host
@@ -22,11 +24,39 @@ public final class API {
         try self.router.append(build())
     }
 
+    public func configureDatabase(
+        hostname: String = "localhost",
+        port: Int = 5432,
+        name: String,
+        username: String,
+        password: String? = nil
+        )
+    {
+        let config = PostgreSQLDatabaseConfig(
+            hostname: hostname,
+            port: port,
+            username: username,
+            database: name,
+            password: password
+        )
+        self.database = PostgreSQLDatabase(config: config)
+    }
+
     public func run() {
         do {
             let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
             let threadPool = BlockingIOThreadPool(numberOfThreads: 6)
             threadPool.start()
+
+//            let connection = try database.newConnection(on: group).wait()
+//            let result = try connection.query("SELECT * FROM tasks").wait()
+//            print(result[0])
+//            if let value = result[0].firstValue(name: "name") {
+//                print(value)
+//                print(value.text)
+//                print(value.binary)
+//            }
+
 
             let fileIO = NonBlockingFileIO(threadPool: threadPool)
             let bootstrap = ServerBootstrap(group: group)
@@ -36,12 +66,19 @@ public final class API {
 
                 // Set the handlers that are applied to the accepted Channels
                 .childChannelInitializer { channel in
-                    channel.pipeline.configureHTTPServerPipeline(withErrorHandling: true).then {
+                    channel.pipeline.configureHTTPServerPipeline(withErrorHandling: true).then {_ in
                         channel.pipeline.add(handler: HTTPHandler(
                             fileIO: fileIO,
                             htdocsPath: self.htdocs,
                             router: self.router,
-                            authenticator: self.authenticator
+                            authenticator: self.authenticator,
+                            createConnection: { () -> PostgreSQLConnection in
+                                guard let database = self.database else {
+                                    throw ServeError.databaseNotConfigured
+                                }
+
+                                return try database.newConnection(on: group).wait()
+                            }
                         ))
                     }
                 }

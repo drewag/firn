@@ -1,16 +1,20 @@
 import NIOHTTP1
+import PostgreSQL
 
 public struct Request {
     let head: HTTPRequestHead
     let authenticator: Authenticator
     public internal(set) var pathParams = PathParams()
 
-    init(head: HTTPRequestHead, authenticator: Authenticator) {
+    var authenticatedUser: AnyUser?
+    let createConnection: () throws -> PostgreSQLConnection
+    var connection: PostgreSQLConnection?
+
+    init(head: HTTPRequestHead, authenticator: Authenticator, createConnection: @escaping () throws -> PostgreSQLConnection) {
         self.head = head
         self.authenticator = authenticator
+        self.createConnection = createConnection
     }
-
-    var authenticatedUser: AnyUser?
 
     public var uri: String {
         return self.head.uri
@@ -36,5 +40,9 @@ public struct Request {
             throw ServeError.unauthorized
         }
         return user
+    }
+
+    func connectToDB() throws -> PostgreSQLConnection {
+        return try self.connection ?? self.createConnection()
     }
 }

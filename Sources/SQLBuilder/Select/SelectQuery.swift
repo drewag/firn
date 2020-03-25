@@ -9,8 +9,8 @@ struct SelectQuery: SQLConvertible {
     var distinct: Bool = false
     var selections: [Expression] = []
     var from: [FromItem] = []
-    var `where`: SQLConvertible?
-    var groupBy: [GroupingElement] = []
+    var `where`: Condition?
+    var groupBy: [Expression] = []
     var having: [SQLConvertible] = []
     var orderBy: Expression?
     var order: Order?

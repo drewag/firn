@@ -1,4 +1,6 @@
-struct Task: Codable {
+import SQLBuilder
+
+struct Task: Table, Codable {
     let id: Int?
     let name: String
     let isComplete: Bool
