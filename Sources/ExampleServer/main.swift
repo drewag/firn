@@ -1,6 +1,7 @@
 import Firn
 
 let api = API()
+let chatRoom = ChatRoom()
 
 api.configureAuthentication(for: User.self) { request in
     // An authorization configuration must return a user if the auth is valid.
@@ -36,6 +37,8 @@ try api.addRoutes {
                 return "Look at you, \(user.name), you're authorized!"
             })
     }
+
+    Socket("chat") { _ in chatRoom.addUser() }
 
     Auth(User.self) {
         // Defines a group of endpoints all at "/tasks"

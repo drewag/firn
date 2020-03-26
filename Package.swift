@@ -14,7 +14,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio.git", from: "1.9.0"),
     ],
     targets: [
-        .target(name: "Firn", dependencies: ["NIO","NIOHTTP1"]),
+        .target(name: "Firn", dependencies: ["NIO","NIOHTTP1","NIOWebSocket"]),
         .testTarget(name: "FirnTests", dependencies: ["Firn"]),
 
         .target(name: "ExampleServer", dependencies: ["Firn"]),

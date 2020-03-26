@@ -3,10 +3,6 @@ import NIO
 import NIOHTTP1
 
 final class HTTPHandler: ChannelInboundHandler {
-    private enum FileIOMethod {
-        case sendfile
-        case nonblockingFileIO
-    }
     public typealias InboundIn = HTTPServerRequestPart
     public typealias OutboundOut = HTTPServerResponsePart
 
@@ -90,11 +86,13 @@ final class HTTPHandler: ChannelInboundHandler {
             var response: Response
             do {
                 if let (request, initialResponse) = self.current {
-                    if let (route, params) = self.router.processor(for: request.uri, by: request.head.method) {
+                    if let (route, params) = self.router.processor(for: request.uri, by: request.head.method)
+                        , let httpRoute = route as? AnyHTTPRequestProcessor
+                    {
                         var request = request
                         request.pathParams = params
-                        try self.verify(&request, for: route)
-                        response = try route.updating(response: initialResponse, for: &request)
+                        try request.verify(for: route)
+                        response = try httpRoute.updating(response: initialResponse, for: &request)
                     }
                     else {
                         throw ServeError.routeNotFound
@@ -194,18 +192,6 @@ final class HTTPHandler: ChannelInboundHandler {
             }
         default:
             ctx.fireUserInboundEventTriggered(event)
-        }
-    }
-}
-
-private extension HTTPHandler {
-    func verify(_ request: inout Request, for route: AnyRequestProcessor) throws {
-        guard route._routingHelper.requiresAuthentication else {
-            return
-        }
-
-        for block in route._routingHelper.authenticationValidation {
-            try block(&request)
         }
     }
 }

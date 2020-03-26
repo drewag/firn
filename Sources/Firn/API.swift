@@ -1,4 +1,6 @@
 import NIO
+import NIOHTTP1
+import NIOWebSocket
 
 public final class API {
     var host: String
@@ -7,6 +9,7 @@ public final class API {
 
     var router = Router()
     var authenticator = Authenticator()
+    var approvedUpgrades = [String:SocketConnectionHandler]()
 
     public init(host: String = "::1", port: Int = 8080, htdocs: String = "/dev/null") {
         self.host = host
@@ -28,6 +31,53 @@ public final class API {
             let threadPool = BlockingIOThreadPool(numberOfThreads: 6)
             threadPool.start()
 
+            var upgraders = [WebSocketUpgrader]()
+            if self.router.hasSocketRoutes {
+                upgraders.append(WebSocketUpgrader(
+                    shouldUpgrade: { head in
+                        do {
+                            guard let key = head.headers["Sec-WebSocket-Key"].first else {
+                                return nil
+                            }
+
+                            var request = Request(head: head, authenticator: self.authenticator)
+                            guard let (route, params) = self.router.processor(for: request.uri, by: request.head.method)
+                                , let processor = route as? WebSocketProcessor
+                                else
+                            {
+                                return nil
+                            }
+                            request.pathParams = params
+                            try request.verify(for: processor)
+
+                            guard let handler = try processor.getHandler(request) else {
+                                return nil
+                            }
+
+                            self.approvedUpgrades[key] = handler
+
+                            return HTTPHeaders()
+                        }
+                        catch {
+                            print("Failed to upgrade to web socket: \(error)")
+                            return nil
+                        }
+                    },
+                    upgradePipelineHandler: { channel, head in
+                        guard let key = head.headers["Sec-WebSocket-Key"].first
+                            , let handler = self.approvedUpgrades[key]
+                            else
+                        {
+                            return channel.pipeline.add(handler: EmptyWebSocketHandler())
+                        }
+
+                        self.approvedUpgrades[key] = nil
+
+                        return channel.pipeline.add(handler: WebSocketHandler(handler: handler))
+                    }
+                ))
+            }
+
             let fileIO = NonBlockingFileIO(threadPool: threadPool)
             let bootstrap = ServerBootstrap(group: group)
                 // Specify backlog and enable SO_REUSEADDR for the server itself
@@ -36,13 +86,22 @@ public final class API {
 
                 // Set the handlers that are applied to the accepted Channels
                 .childChannelInitializer { channel in
-                    channel.pipeline.configureHTTPServerPipeline(withErrorHandling: true).then {
-                        channel.pipeline.add(handler: HTTPHandler(
-                            fileIO: fileIO,
-                            htdocsPath: self.htdocs,
-                            router: self.router,
-                            authenticator: self.authenticator
-                        ))
+                    let httpHandler = HTTPHandler(
+                        fileIO: fileIO,
+                        htdocsPath: self.htdocs,
+                        router: self.router,
+                        authenticator: self.authenticator
+                    )
+
+                    let config: HTTPUpgradeConfiguration = (
+                        upgraders: upgraders,
+                        completionHandler: { ctx in
+                            channel.pipeline.remove(handler: httpHandler, promise: nil)
+                        }
+                    )
+
+                    return channel.pipeline.configureHTTPServerPipeline(withServerUpgrade: config, withErrorHandling: true).then {
+                        channel.pipeline.add(handler: httpHandler)
                     }
                 }
 

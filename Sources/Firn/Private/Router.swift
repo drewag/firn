@@ -8,6 +8,7 @@ struct Router {
 
     var staticChildren = MethodOrganizedDictionary<String,Handler>()
     var variableChildren = MethodOrganizedDictionary<Var,Handler>()
+    var hasSocketRoutes: Bool = false
 
     mutating func append(_ collection: ProcessorCollection) throws {
         for spec in collection.specs {
@@ -22,6 +23,9 @@ struct Router {
 
 private extension Router {
     mutating func append(_ processor: AnyRequestProcessor, at path: [PathComponent]) throws {
+        if processor is WebSocketProcessor {
+            self.hasSocketRoutes = true
+        }
         let method = processor._routingHelper.method
         switch path.count {
         case 0:

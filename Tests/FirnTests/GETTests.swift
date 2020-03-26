@@ -20,7 +20,7 @@ final class GETTests: XCTestCase {
     }
 
     func testChain() throws {
-        var route: AnyRequestProcessor = GET()
+        var route: AnyHTTPRequestProcessor = GET()
             .toText({ _ in return "Example" })
             .toObject({ _, text in return TestObject(key: text) })
         var request = createTestRequest()

@@ -1,19 +1,22 @@
 import NIOHTTP1
 
 public protocol AnyRequestProcessor: ProcessorCollection {
-    func updating(response: Response, for request: inout Request) throws -> Response
     var _routingHelper: PrivateRequestProcessorInfo {get}
 }
 
-public final class RequestProcessor<Input, Output>: AnyRequestProcessor {
-    let before: AnyRequestProcessor?
+public protocol AnyHTTPRequestProcessor: AnyRequestProcessor {
+    func updating(response: Response, for request: inout Request) throws -> Response
+}
+
+public final class RequestProcessor<Input, Output>: AnyHTTPRequestProcessor {
+    let before: AnyHTTPRequestProcessor?
     let process: ((inout Request, Input) throws -> Output)?
     let newStatus: HTTPResponseStatus?
     public let _routingHelper: PrivateRequestProcessorInfo
 
     init(
         helper: PrivateRequestProcessorInfo,
-        before: AnyRequestProcessor?,
+        before: AnyHTTPRequestProcessor?,
         process: ((inout Request, Input) throws -> Output)? = nil,
         newStatus: HTTPResponseStatus? = nil
         )
@@ -37,5 +40,19 @@ public final class RequestProcessor<Input, Output>: AnyRequestProcessor {
             response.status = newStatus
         }
         return response
+    }
+}
+
+public struct WebSocketProcessor: AnyRequestProcessor {
+    public let _routingHelper: PrivateRequestProcessorInfo
+    public let getHandler: (Request) throws -> SocketConnectionHandler?
+
+    init(
+        helper: PrivateRequestProcessorInfo,
+        getHandler: @escaping (Request) throws -> SocketConnectionHandler?
+        )
+    {
+        self._routingHelper = helper
+        self.getHandler = getHandler
     }
 }

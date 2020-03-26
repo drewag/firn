@@ -37,3 +37,8 @@ public func Auth<User: AnyUser>(_ type: User.Type, verify: ((User) throws -> Boo
         return spec
     })
 }
+
+public func Socket(named name: String? = nil, _ component: PathComponent = "", getHandler: @escaping (Request) throws -> SocketConnectionHandler?) -> WebSocketProcessor {
+    let helper = PrivateRequestProcessorInfo(name: name, method: .GET, lastPathComponent: component)
+    return WebSocketProcessor(helper: helper, getHandler: getHandler)
+}

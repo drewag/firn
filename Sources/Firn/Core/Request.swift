@@ -37,4 +37,14 @@ public struct Request {
         }
         return user
     }
+
+    mutating func verify(for route: AnyRequestProcessor) throws {
+        guard route._routingHelper.requiresAuthentication else {
+            return
+        }
+
+        for block in route._routingHelper.authenticationValidation {
+            try block(&self)
+        }
+    }
 }
