@@ -27,6 +27,12 @@ final class HTTPHandler: ChannelInboundHandler {
         }
     }
 
+    private enum ResponseContent {
+        case buffer(ByteBuffer, count: Int, type: String)
+        case file(handle: NIO.FileHandle, region: FileRegion, type: String)
+        case none
+    }
+
     private var keepAlive = false
     private var state = State.idle
     private let htdocsPath: String
@@ -106,71 +112,93 @@ final class HTTPHandler: ChannelInboundHandler {
                 response = Response.create(from: error)
             }
 
-            var buffer: ByteBuffer?
-            var bufferCount: Int = 0
-            var contentType: String? = nil
-            var processed = false
-            do {
-                while !processed {
-                    let content = response.content
-                    if let string = content as? String {
-                        bufferCount = string.utf8.count
-                        buffer = ctx.channel.allocator.buffer(capacity: bufferCount)
-                        buffer?.write(string: string)
-                        contentType = "text/plain"
-                        processed = true
-                    }
-                    else if let _ = content as? EmptyResponseContent {
-                        // Empty response
-                        processed = true
-                    }
-                    else if let input = content as? DataBuffer {
-                        switch input.mode {
-                        case .buffer(let byteBuffer):
-                            bufferCount = byteBuffer.readableBytes
-                            buffer = byteBuffer
-                        case .data(let data):
-                            bufferCount = data.count
-                            buffer = ctx.channel.allocator.buffer(capacity: data.count)
-                            buffer?.write(bytes: data)
-                        }
-                        contentType = "application/octet-stream"
-                        processed = true
-                    }
-                    else if let content = content as? Encodable {
-                        let encodable = AnyEncodable(content.encode)
-                        let data = try JSONEncoder().encode(encodable)
-                        bufferCount = data.count
-                        buffer = ctx.channel.allocator.buffer(capacity: bufferCount)
-                        buffer?.write(bytes: data)
-                        contentType = "application/json"
-                        processed = true
-                    }
-                    else {
-                        throw ServeError.invalidResponseBody(type: "\(type(of: content))")
-                    }
+            self.send(response, ctx: ctx)
+        }
+    }
+
+    private func send(_ response: Response, ctx: ChannelHandlerContext) {
+        do {
+            let content = response.content
+            if let string = content as? String {
+                let bufferCount = string.utf8.count
+                var buffer = ctx.channel.allocator.buffer(capacity: bufferCount)
+                buffer.write(string: string)
+                self.send(response, content: .buffer(buffer, count: bufferCount, type: "text/plain"), ctx: ctx)
+            }
+            else if let _ = content as? EmptyResponseContent {
+                self.send(response, content: .none, ctx: ctx)
+            }
+            else if let input = content as? DataBuffer {
+                switch input.mode {
+                case .buffer(let byteBuffer):
+                    self.send(response, content: .buffer(byteBuffer, count: byteBuffer.readableBytes, type: "application/octet-stream"), ctx: ctx)
+                case .data(let data):
+                    var buffer = ctx.channel.allocator.buffer(capacity: data.count)
+                    buffer.write(bytes: data)
+                    self.send(response, content: .buffer(buffer, count: data.count, type: "application/octet-stream"), ctx: ctx)
                 }
             }
-            catch {
-                response = Response.create(from: error)
+            else if let fileReference = content as? FileReference {
+                let fileHandleAndRegion = self.fileIO.openFile(path: fileReference.localPath, eventLoop: ctx.eventLoop)
+                fileHandleAndRegion.whenFailure { error in
+                    self.send(Response.create(from: error), ctx: ctx)
+                }
+                fileHandleAndRegion.whenSuccess { [response] handle, region in
+                    self.send(response, content: .file(handle: handle, region: region, type: fileReference.contentType), ctx: ctx)
+                }
             }
-
-            var responseHead = response.head(for: self.current?.request)
-            if let _ = buffer {
-                responseHead.headers.add(name: "Content-Length", value: "\(bufferCount)")
+            else if let content = content as? Encodable {
+                let encodable = AnyEncodable(content.encode)
+                let data = try JSONEncoder().encode(encodable)
+                let bufferCount = data.count
+                var buffer = ctx.channel.allocator.buffer(capacity: bufferCount)
+                buffer.write(bytes: data)
+                self.send(response, content: .buffer(buffer, count: bufferCount, type: "application/json"), ctx: ctx)
             }
-            if let contentType = contentType {
-                responseHead.headers.add(name: "Content-Type", value: contentType)
+            else {
+                throw ServeError.invalidResponseBody(type: "\(type(of: content))")
             }
-            let httpResponse = HTTPServerResponsePart.head(responseHead)
-            ctx.write(self.wrapOutboundOut(httpResponse), promise: nil)
-
-            if let buffer = buffer {
-                let content = HTTPServerResponsePart.body(.byteBuffer(buffer.slice()))
-                ctx.write(self.wrapOutboundOut(content), promise: nil)
-            }
-            self.completeResponse(ctx, trailers: nil, promise: nil)
         }
+        catch {
+            self.send(Response.create(from: error), ctx: ctx)
+        }
+    }
+
+    private func send(_ response: Response, content: ResponseContent, ctx: ChannelHandlerContext) {
+        var responseHead = response.head(for: self.current?.request)
+        switch content {
+        case .buffer(_, let count, let type):
+            responseHead.headers.add(name: "Content-Length", value: "\(count)")
+            responseHead.headers.add(name: "Content-Type", value: type)
+        case .file(_, let region, let type):
+            responseHead.headers.add(name: "Content-Length", value: "\(region.endIndex)")
+            responseHead.headers.add(name: "Content-Type", value: type)
+        case .none:
+            break
+        }
+
+        let httpResponse = HTTPServerResponsePart.head(responseHead)
+        ctx.write(self.wrapOutboundOut(httpResponse), promise: nil)
+
+        switch content {
+        case .buffer(let buffer, _, _):
+            let content = HTTPServerResponsePart.body(.byteBuffer(buffer.slice()))
+            ctx.write(self.wrapOutboundOut(content), promise: nil)
+        case .file(let handle, let region, _):
+            ctx.writeAndFlush(self.wrapOutboundOut(.body(.fileRegion(region)))).map {
+                let p = ctx.eventLoop.newPromise(of: Void.self)
+                self.completeResponse(ctx, trailers: nil, promise: p)
+                return p.futureResult 
+            }.mapIfError { _ in
+                ctx.close()
+            }.whenComplete {
+                _ = try? handle.close()
+            }
+            return
+        case .none:
+            break
+        }
+        self.completeResponse(ctx, trailers: nil, promise: nil)
     }
 
     func channelReadComplete(ctx: ChannelHandlerContext) {
