@@ -53,7 +53,6 @@ private extension Router {
         default:
             var path = path
             let component = path.removeFirst()
-            let handler: Handler
 
             func update(_ handler: Handler?) throws -> (Handler, MethodSet) {
                 var router: Router
@@ -108,6 +107,11 @@ private extension Router {
         else if let stringHandler = self.variableChildren.get(for: .string, by: method) {
             params.append(component)
             handler = stringHandler
+        }
+        else if let pathHandler = self.variableChildren.get(for: .path, by: method) {
+            params.set(path: [component] + path.map({String($0)}))
+            path.removeAll()
+            handler = pathHandler
         }
         else {
             handler = nil

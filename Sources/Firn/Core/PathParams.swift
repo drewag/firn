@@ -8,6 +8,7 @@
 public struct PathParams {
     var ints = [Int]()
     var strings = [String]()
+    var remainingPath: [String]?
 
     var isEmpty: Bool {
         return self.ints.isEmpty && self.strings.isEmpty
@@ -19,6 +20,10 @@ public struct PathParams {
 
     mutating func append(_ string: String) {
         self.strings.append(string)
+    }
+
+    mutating func set(path: [String]) {
+        self.remainingPath = path
     }
 
     public func int(at index: Int) throws -> Int {
@@ -39,5 +44,15 @@ public struct PathParams {
             )
         }
         return self.strings[index]
+    }
+
+    public func capturePath() throws -> [String] {
+        guard let remainingPath = self.remainingPath else {
+            throw ServeError.internalServerError(
+                reason: "Attempted to access a non-existent path parameter.",
+                details: "Captured Path."
+            )
+        }
+        return remainingPath
     }
 }
