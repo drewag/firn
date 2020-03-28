@@ -42,3 +42,30 @@ public func Socket(named name: String? = nil, _ component: PathComponent = "", g
     let helper = PrivateRequestProcessorInfo(name: name, method: .GET, lastPathComponent: component)
     return WebSocketProcessor(helper: helper, getHandler: getHandler)
 }
+
+public func StaticDirectory(root: String) -> ProcessorCollection {
+    return GET(named: nil, Var.path)
+        .toFile({ request in
+            let root = URL(fileURLWithPath: root)
+            let path = root.appendingPathComponent(try request.pathParams.capturePath().joined(separator: "/"))
+
+            func reference(forFilePath path: URL, automaticIndex: Bool) throws -> FileReference {
+                var isDirectory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: path.relativePath, isDirectory: &isDirectory) else {
+                    throw ServeError.routeNotFound
+                }
+
+                guard !isDirectory.boolValue else {
+                    if automaticIndex {
+                        throw ServeError.routeNotFound
+                    }
+                    else {
+                        return try reference(forFilePath: path.appendingPathComponent("index.html"), automaticIndex: true)
+                    }
+                }
+                return FileReference(localPath: path.relativePath)
+            }
+
+            return try reference(forFilePath: path, automaticIndex: false)
+        })
+}
