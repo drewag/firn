@@ -35,7 +35,6 @@ final class HTTPHandler: ChannelInboundHandler {
 
     private var keepAlive = false
     private var state = State.idle
-    private let htdocsPath: String
 
     private var infoSavedRequestHead: HTTPRequestHead?
     private var infoSavedBodyBytes: Int = 0
@@ -43,6 +42,7 @@ final class HTTPHandler: ChannelInboundHandler {
     private var continuousCount: Int = 0
 
     private let fileIO: NonBlockingFileIO
+    private let allowCrossOriginRequests: Bool
 
     private let router: Router
     private let authenticator: Authenticator
@@ -50,12 +50,12 @@ final class HTTPHandler: ChannelInboundHandler {
 
     public init(
         fileIO: NonBlockingFileIO,
-        htdocsPath: String,
+        allowCrossOriginRequests: Bool,
         router: Router,
         authenticator: Authenticator
     ) {
-        self.htdocsPath = htdocsPath
         self.fileIO = fileIO
+        self.allowCrossOriginRequests = allowCrossOriginRequests
         self.router = router
         self.authenticator = authenticator
     }
@@ -175,6 +175,11 @@ final class HTTPHandler: ChannelInboundHandler {
             responseHead.headers.add(name: "Content-Type", value: type)
         case .none:
             break
+        }
+        if self.allowCrossOriginRequests {
+            responseHead.headers.add(name: "Access-Control-Allow-Origin", value: "*")
+            responseHead.headers.add(name: "Access-Control-Allow-Methods", value: "POST, PUT, GET, HEAD, DELETE, OPTIONS")
+            responseHead.headers.add(name: "Access-Control-Allow-Headers", value: "Access-Control-Request-Headers")
         }
 
         let httpResponse = HTTPServerResponsePart.head(responseHead)

@@ -5,16 +5,16 @@ import NIOWebSocket
 public final class API {
     var host: String
     var port: Int
-    let htdocs: String
+    let allowCrossOriginRequests: Bool
 
     var router = Router()
     var authenticator = Authenticator()
     var approvedUpgrades = [String:SocketConnectionHandler]()
 
-    public init(host: String = "::1", port: Int = 8080, htdocs: String = "/dev/null") {
+    public init(host: String = "::1", port: Int = 8080, allowCrossOriginRequests: Bool = false) {
         self.host = host
         self.port = port
-        self.htdocs = htdocs
+        self.allowCrossOriginRequests = allowCrossOriginRequests
     }
 
     public func configureAuthentication<User: AnyUser>(for userType: User.Type, authenticate: @escaping (Request) -> User?) {
@@ -88,7 +88,7 @@ public final class API {
                 .childChannelInitializer { channel in
                     let httpHandler = HTTPHandler(
                         fileIO: fileIO,
-                        htdocsPath: self.htdocs,
+                        allowCrossOriginRequests: self.allowCrossOriginRequests,
                         router: self.router,
                         authenticator: self.authenticator
                     )
@@ -123,7 +123,7 @@ public final class API {
             guard let localAddress = channel.localAddress else {
                 fatalError("Address was unable to bind. Please check that the socket was not closed or that the address family was understood.")
             }
-            print("Server started and listening on \(localAddress), htdocs path \(htdocs)")
+            print("Server started and listening on \(localAddress)")
             try channel.closeFuture.wait()
 
             print("Server closed")
