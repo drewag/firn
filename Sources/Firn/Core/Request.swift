@@ -20,6 +20,18 @@ public struct Request {
         return Headers(headers: self.head.headers)
     }
 
+    public var bearerToken: String? {
+        guard let authorization = self.headers["Authorization"].first
+            , authorization.lowercased().hasPrefix("bearer ")
+            else
+        {
+            return nil
+        }
+
+        let start = authorization.index(authorization.startIndex, offsetBy: 7)
+        return String(authorization[start ..< authorization.endIndex])
+    }
+
     @discardableResult
     public mutating func authorizedUser<User: AnyUser>(_ type: User.Type) throws -> User {
         guard let user = self.authenticatedUser as? User else {
