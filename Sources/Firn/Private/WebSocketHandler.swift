@@ -41,8 +41,19 @@ final class WebSocketHandler: ChannelInboundHandler {
         case .text:
             var data = frame.unmaskedData
             let text = data.readString(length: data.readableBytes) ?? ""
-            self.handler.handle(text: text)
-        case .binary, .continuation, .pong:
+            guard !self.handler.handle(text: text) else {
+                return
+            }
+            guard !self.handler.handle(data: text.data(using: .utf8) ?? Data()) else {
+                return
+            }
+        case .binary:
+            var bytes = frame.unmaskedData
+            let data = Data(bytes.readBytes(length: bytes.readableBytes) ?? [])
+            guard !self.handler.handle(data: data) else {
+                return
+            }
+        case .continuation, .pong:
             // We ignore these frames.
             break
         default:

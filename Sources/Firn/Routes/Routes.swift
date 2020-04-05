@@ -20,6 +20,11 @@ public func DELETE(named name: String? = nil, _ component: PathComponent = "") -
     return RequestProcessor(helper: helper, before: nil, process: nil)
 }
 
+public func OPTIONS(named name: String? = nil, _ component: PathComponent = "") -> RequestProcessor<Void, EmptyResponseContent>  {
+    let helper = PrivateRequestProcessorInfo(name: name, method: .OPTIONS, lastPathComponent: component)
+    return RequestProcessor(helper: helper, before: nil, process: nil)
+}
+
 public func Group(_ component: PathComponent, @RouteBuilder _ build: () -> ProcessorCollection) -> ProcessorCollection {
     return MultiProcessor(specs: build().specs.map { spec in
         var spec = spec
