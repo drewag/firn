@@ -179,7 +179,7 @@ final class HTTPHandler: ChannelInboundHandler {
         if self.allowCrossOriginRequests {
             responseHead.headers.add(name: "Access-Control-Allow-Origin", value: "*")
             responseHead.headers.add(name: "Access-Control-Allow-Methods", value: "POST, PUT, GET, HEAD, DELETE, OPTIONS")
-            responseHead.headers.add(name: "Access-Control-Allow-Headers", value: "Access-Control-Request-Headers")
+            responseHead.headers.add(name: "Access-Control-Allow-Headers", value: "*")
         }
 
         let httpResponse = HTTPServerResponsePart.head(responseHead)
