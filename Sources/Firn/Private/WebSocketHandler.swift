@@ -27,6 +27,7 @@ final class WebSocketHandler: ChannelInboundHandler {
     }
 
     func handlerRemoved(ctx: ChannelHandlerContext) {
+        self.handler.handleClose()
         self.context = nil
     }
 

@@ -17,6 +17,7 @@ open class SocketConnectionHandler {
     }
 
     open func handleNewConnection() {}
+    open func handleClose() {}
     open func handle(text: String) -> Bool {
         return false
     }
