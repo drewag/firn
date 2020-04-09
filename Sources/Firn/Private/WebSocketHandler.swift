@@ -23,7 +23,7 @@ final class WebSocketHandler: ChannelInboundHandler {
 
     func handlerAdded(ctx: ChannelHandlerContext) {
         self.context = ctx
-        self.handler.handleNewConnection()
+        self.handler.handleOpen()
     }
 
     func handlerRemoved(ctx: ChannelHandlerContext) {
