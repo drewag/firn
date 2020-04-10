@@ -20,6 +20,19 @@ public struct Request {
         return Headers(headers: self.head.headers)
     }
 
+    public func cookie(named: String) -> String? {
+        for cookie in self.headers["cookie"] {
+            let components = cookie.components(separatedBy: ";").map({$0.trimmingWhitespaceOnEnds})
+            for component in components {
+                if component.hasPrefix(named + "=") {
+                    let start = component.index(component.startIndex, offsetBy: named.count + 1)
+                    return String(component[start ..< component.endIndex])
+                }
+            }
+        }
+        return nil
+    }
+
     public var bearerToken: String? {
         guard let authorization = self.headers["Authorization"].first
             , authorization.lowercased().hasPrefix("bearer ")
@@ -58,5 +71,32 @@ public struct Request {
         for block in route._routingHelper.authenticationValidation {
             try block(&self)
         }
+    }
+}
+
+private extension String {
+    public var trimmingWhitespaceOnEnds: String {
+        var output = ""
+        var pending = ""
+        var foundNonWhitespace = false
+        for char in self {
+            switch char {
+            case "\n", "\t", " ", "\r":
+                if foundNonWhitespace {
+                    pending.append(char)
+                }
+                else {
+                    continue
+                }
+            default:
+                foundNonWhitespace = true
+                if !pending.isEmpty {
+                    output += pending
+                    pending = ""
+                }
+                output.append(char)
+            }
+        }
+        return output
     }
 }
