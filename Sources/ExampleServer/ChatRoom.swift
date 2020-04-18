@@ -1,12 +1,13 @@
 import Firn
 
 class ChatRoomConnection: SocketConnectionHandler {
-    override func handleNewConnection() {
+    override func handleOpen() {
         self.send("Welcome to the chat room!")
     }
 
-    override func handle(text: String) {
+    override func handle(text: String) -> Bool {
         chatRoom.send(text)
+        return true
     }
 }
 
