@@ -28,16 +28,16 @@ public final class API {
     public func run() {
         do {
             let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
-            let threadPool = BlockingIOThreadPool(numberOfThreads: 6)
+            let threadPool = NIOThreadPool(numberOfThreads: System.coreCount)
             threadPool.start()
 
-            var upgraders = [WebSocketUpgrader]()
+            var upgraders = [NIOWebSocketServerUpgrader]()
             if self.router.hasSocketRoutes {
-                upgraders.append(WebSocketUpgrader(
-                    shouldUpgrade: { head in
+                upgraders.append(NIOWebSocketServerUpgrader(
+                    shouldUpgrade: { channel, head  in
                         do {
                             guard let key = head.headers["Sec-WebSocket-Key"].first else {
-                                return nil
+                                return channel.eventLoop.makeSucceededFuture(nil)
                             }
 
                             var request = Request(head: head, authenticator: self.authenticator)
@@ -45,22 +45,22 @@ public final class API {
                                 , let processor = route as? WebSocketProcessor
                                 else
                             {
-                                return nil
+                                return channel.eventLoop.makeSucceededFuture(nil)
                             }
                             request.pathParams = params
                             try request.verify(for: processor)
 
                             guard let handler = try processor.getHandler(request) else {
-                                return nil
+                                return channel.eventLoop.makeSucceededFuture(nil)
                             }
 
                             self.approvedUpgrades[key] = handler
 
-                            return HTTPHeaders()
+                            return channel.eventLoop.makeSucceededFuture(HTTPHeaders())
                         }
                         catch {
                             print("Failed to upgrade to web socket: \(error)")
-                            return nil
+                            return channel.eventLoop.makeSucceededFuture(nil)
                         }
                     },
                     upgradePipelineHandler: { channel, head in
@@ -68,12 +68,12 @@ public final class API {
                             , let handler = self.approvedUpgrades[key]
                             else
                         {
-                            return channel.pipeline.add(handler: EmptyWebSocketHandler())
+                            return channel.pipeline.addHandler(EmptyWebSocketHandler())
                         }
 
                         self.approvedUpgrades[key] = nil
 
-                        return channel.pipeline.add(handler: WebSocketHandler(handler: handler))
+                        return channel.pipeline.addHandler(WebSocketHandler(handler: handler))
                     }
                 ))
             }
@@ -93,15 +93,18 @@ public final class API {
                         authenticator: self.authenticator
                     )
 
-                    let config: HTTPUpgradeConfiguration = (
+                    let config: NIOHTTPServerUpgradeConfiguration = (
                         upgraders: upgraders,
                         completionHandler: { ctx in
-                            channel.pipeline.remove(handler: httpHandler, promise: nil)
+                            channel.pipeline.removeHandler(httpHandler, promise: nil)
                         }
                     )
 
-                    return channel.pipeline.configureHTTPServerPipeline(withServerUpgrade: config, withErrorHandling: true).then {
-                        channel.pipeline.add(handler: httpHandler)
+                    return channel.pipeline.configureHTTPServerPipeline(withServerUpgrade: config, withErrorHandling: true).flatMap {
+                        channel.pipeline.addHandler(httpHandler)
+                    }.flatMapError { error in
+                        print("error: \(error)")
+                        return channel.eventLoop.makeFailedFuture(error)
                     }
                 }
 

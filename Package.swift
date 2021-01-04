@@ -11,10 +11,11 @@ let package = Package(
         .executable(name: "ExampleServer", targets: ["ExampleServer"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "1.9.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.15.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.10.2"),
     ],
     targets: [
-        .target(name: "Firn", dependencies: ["NIO","NIOHTTP1","NIOWebSocket"]),
+        .target(name: "Firn", dependencies: ["NIOSSL","NIO","NIOHTTP1","NIOWebSocket"]),
         .testTarget(name: "FirnTests", dependencies: ["Firn"]),
 
         .target(name: "ExampleServer", dependencies: ["Firn"]),

@@ -6,17 +6,17 @@
         "repositoryURL": "https://github.com/apple/swift-nio.git",
         "state": {
           "branch": null,
-          "revision": "8da5c5a4e6c5084c296b9f39dc54f00be146e0fa",
-          "version": "1.14.2"
+          "revision": "43931b7a7daf8120a487601530c8bc03ce711992",
+          "version": "2.25.1"
         }
       },
       {
-        "package": "swift-nio-zlib-support",
-        "repositoryURL": "https://github.com/apple/swift-nio-zlib-support.git",
+        "package": "swift-nio-ssl",
+        "repositoryURL": "https://github.com/apple/swift-nio-ssl.git",
         "state": {
           "branch": null,
-          "revision": "37760e9a52030bb9011972c5213c3350fa9d41fd",
-          "version": "1.0.0"
+          "revision": "62bf5083df970e67c886210fa5b857eacf044b7c",
+          "version": "2.10.2"
         }
       }
     ]

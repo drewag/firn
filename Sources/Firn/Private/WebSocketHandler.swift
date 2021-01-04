@@ -77,7 +77,7 @@ final class WebSocketHandler: ChannelInboundHandler {
             guard !self.awaitingClose else { return }
 
             var buffer = context.channel.allocator.buffer(capacity: data.count)
-            buffer.write(bytes: data)
+            buffer.writeBytes(data)
 
             let frame = WebSocketFrame(fin: true, opcode: .text, data: buffer)
             context.writeAndFlush(self.wrapOutboundOut(frame))
@@ -127,7 +127,7 @@ final class WebSocketHandler: ChannelInboundHandler {
         var data = ctx.channel.allocator.buffer(capacity: 2)
         data.write(webSocketErrorCode: .protocolError)
         let frame = WebSocketFrame(fin: true, opcode: .connectionClose, data: data)
-        ctx.write(self.wrapOutboundOut(frame)).whenComplete {
+        ctx.write(self.wrapOutboundOut(frame)).whenComplete { _ in
             ctx.close(mode: .output, promise: nil)
             self.context = nil
         }

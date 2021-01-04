@@ -15,6 +15,6 @@ public struct Headers {
     }
 
     public subscript(name: String) -> [String] {
-        return self.headers[canonicalForm: name]
+        return self.headers[canonicalForm: name].map({String($0)})
     }
 }
