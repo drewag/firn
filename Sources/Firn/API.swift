@@ -1,20 +1,24 @@
 import NIO
 import NIOHTTP1
 import NIOWebSocket
+import NIOSSL
 
 public final class API {
-    var host: String
-    var port: Int
+    
+    let host: String
+    let port: Int
+    let ssl: SSL
     let allowCrossOriginRequests: Bool
 
     var router = Router()
     var authenticator = Authenticator()
     var approvedUpgrades = [String:SocketConnectionHandler]()
 
-    public init(host: String = "::1", port: Int = 8080, allowCrossOriginRequests: Bool = false) {
+    public init(host: String = "::1", port: Int = 8080, ssl: SSL = .none, allowCrossOriginRequests: Bool = false) {
         self.host = host
         self.port = port
         self.allowCrossOriginRequests = allowCrossOriginRequests
+        self.ssl = ssl
     }
 
     public func configureAuthentication<User: AnyUser>(for userType: User.Type, authenticate: @escaping (Request) -> User?) {
@@ -85,28 +89,7 @@ public final class API {
                 .serverChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
 
                 // Set the handlers that are applied to the accepted Channels
-                .childChannelInitializer { channel in
-                    let httpHandler = HTTPHandler(
-                        fileIO: fileIO,
-                        allowCrossOriginRequests: self.allowCrossOriginRequests,
-                        router: self.router,
-                        authenticator: self.authenticator
-                    )
-
-                    let config: NIOHTTPServerUpgradeConfiguration = (
-                        upgraders: upgraders,
-                        completionHandler: { ctx in
-                            channel.pipeline.removeHandler(httpHandler, promise: nil)
-                        }
-                    )
-
-                    return channel.pipeline.configureHTTPServerPipeline(withServerUpgrade: config, withErrorHandling: true).flatMap {
-                        channel.pipeline.addHandler(httpHandler)
-                    }.flatMapError { error in
-                        print("error: \(error)")
-                        return channel.eventLoop.makeFailedFuture(error)
-                    }
-                }
+                .childChannelInitializer(configureHTTPSSLBlock(fileIO: fileIO, upgraders: upgraders))
 
                 // Enable TCP_NODELAY and SO_REUSEADDR for the accepted Channels
                 .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
@@ -135,4 +118,65 @@ public final class API {
             print("Error starting server: \(error)")
         }
     }
+
+    private func configureHTTPSSLBlock(fileIO: NonBlockingFileIO, upgraders: [NIOWebSocketServerUpgrader]) -> (Channel) -> EventLoopFuture<Void> {
+        guard let sslContext = self.sslContext else {
+            return configureHTTPBlock(fileIO: fileIO, upgraders: upgraders)
+        }
+
+        return { channel in
+            channel.pipeline.addHandler(NIOSSLServerHandler(context: sslContext))
+                .flatMap {
+                    self.configureHTTPBlock(fileIO: fileIO, upgraders: upgraders)(channel)
+                }
+        }
+    }
+
+    private func configureHTTPBlock(fileIO: NonBlockingFileIO, upgraders: [NIOWebSocketServerUpgrader]) -> (Channel) -> EventLoopFuture<Void> {
+        return { channel in
+            let httpHandler = HTTPHandler(
+                fileIO: fileIO,
+                allowCrossOriginRequests: self.allowCrossOriginRequests,
+                router: self.router,
+                authenticator: self.authenticator
+            )
+
+            let config: NIOHTTPServerUpgradeConfiguration = (
+                upgraders: upgraders,
+                completionHandler: { ctx in
+                    channel.pipeline.removeHandler(httpHandler, promise: nil)
+                }
+            )
+
+            return channel.pipeline.configureHTTPServerPipeline(withServerUpgrade: config, withErrorHandling: true).flatMap {
+                channel.pipeline.addHandler(httpHandler)
+            }.flatMapError { error in
+                print("error: \(error)")
+                return channel.eventLoop.makeFailedFuture(error)
+            }
+        }
+    }
+
+    lazy var sslContext: NIOSSLContext? = {
+        switch self.ssl {
+        case let .fileSystem(keyPath, certPath):
+            do {
+                let privateKey = NIOSSLPrivateKeySource.privateKey(
+                    try NIOSSLPrivateKey(file: keyPath, format: .pem)
+                )
+                let certificate = NIOSSLCertificateSource.certificate(
+                    try NIOSSLCertificate(file: certPath, format: .pem)
+                )
+
+                let configuration = TLSConfiguration.forServer(certificateChain: [certificate], privateKey: privateKey)
+                return try NIOSSLContext(configuration: configuration)
+            }
+            catch {
+                print("Failed to configure SSL context: \(error)")
+                return nil
+            }
+        case .none:
+            return nil
+        }
+    }()
 }
