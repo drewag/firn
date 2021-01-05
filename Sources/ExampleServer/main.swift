@@ -1,6 +1,6 @@
 import Firn
 
-let api = API()
+let api = API(port: .specific(8080))
 let chatRoom = ChatRoom()
 
 api.configureAuthentication(for: User.self) { request in

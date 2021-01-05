@@ -4,9 +4,20 @@ import NIOWebSocket
 import NIOSSL
 
 public final class API {
-    
-    let host: String
-    let port: Int
+
+    public enum Host {
+        case ipv4(String)
+        case ipv6(String)
+        case any
+    }
+
+    public enum Port {
+        case specific(UInt16)
+        case automatic
+    }
+
+    let host: Host
+    let port: Port
     let ssl: SSL
     let allowCrossOriginRequests: Bool
 
@@ -14,7 +25,7 @@ public final class API {
     var authenticator = Authenticator()
     var approvedUpgrades = [String:SocketConnectionHandler]()
 
-    public init(host: String = "::1", port: Int = 8080, ssl: SSL = .none, allowCrossOriginRequests: Bool = false) {
+    public init(host: Host = .any, port: Port = .automatic, ssl: SSL = .none, allowCrossOriginRequests: Bool = false) {
         self.host = host
         self.port = port
         self.allowCrossOriginRequests = allowCrossOriginRequests
@@ -103,7 +114,29 @@ public final class API {
             }
 
             let channel = try { () -> Channel in
-                return try bootstrap.bind(host: host, port: port).wait()
+                let address: SocketAddress
+                var sAddr = sockaddr_in()
+                switch port {
+                case .automatic:
+                    sAddr.sin_port = 0
+                case .specific(let port):
+                    sAddr.sin_port = port.bigEndian
+                }
+                switch host {
+                case .any:
+                    sAddr.sin_family = sa_family_t(AF_INET)
+                    sAddr.sin_addr.s_addr = INADDR_ANY.bigEndian
+                    address = SocketAddress(sAddr, host: "")
+                case .ipv4(let ip):
+                    sAddr.sin_family = sa_family_t(AF_INET)
+                    inet_pton(AF_INET, ip, &sAddr.sin_addr)
+                    address = SocketAddress(sAddr, host: "")
+                case .ipv6(let ip):
+                    sAddr.sin_family = sa_family_t(AF_INET)
+                    inet_pton(AF_INET6, ip, &sAddr.sin_addr)
+                    address = SocketAddress(sAddr, host: "")
+                }
+                return try bootstrap.bind(to: address).wait()
             }()
 
             guard let localAddress = channel.localAddress else {
