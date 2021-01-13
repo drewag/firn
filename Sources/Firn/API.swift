@@ -5,6 +5,10 @@ import NIOSSL
 
 public final class API {
 
+    public struct ListeningAPI {
+        public let port: Int
+    }
+
     public enum Host {
         case ipv4(String)
         case ipv6(String)
@@ -40,7 +44,7 @@ public final class API {
         try self.router.append(build())
     }
 
-    public func run() {
+    public func run(onListening: ((ListeningAPI) -> ())? = nil) {
         do {
             let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
             let threadPool = NIOThreadPool(numberOfThreads: System.coreCount)
@@ -143,6 +147,9 @@ public final class API {
                 fatalError("Address was unable to bind. Please check that the socket was not closed or that the address family was understood.")
             }
             print("Server started and listening on \(localAddress)")
+            onListening?(ListeningAPI(
+                port: localAddress.port ?? 0
+            ))
             try channel.closeFuture.wait()
 
             print("Server closed")
