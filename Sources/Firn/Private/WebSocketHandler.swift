@@ -21,24 +21,24 @@ final class WebSocketHandler: ChannelInboundHandler {
         handler.connect(with: self)
     }
 
-    func handlerAdded(ctx: ChannelHandlerContext) {
-        self.context = ctx
+    func handlerAdded(context: ChannelHandlerContext) {
+        self.context = context
         self.handler.handleOpen()
     }
 
-    func handlerRemoved(ctx: ChannelHandlerContext) {
+    func handlerRemoved(context: ChannelHandlerContext) {
         self.handler.handleClose()
         self.context = nil
     }
 
-    func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let frame = self.unwrapInboundIn(data)
 
         switch frame.opcode {
         case .connectionClose:
-            self.receivedClose(ctx: ctx, frame: frame)
+            self.receivedClose(ctx: context, frame: frame)
         case .ping:
-            self.pong(ctx: ctx, frame: frame)
+            self.pong(ctx: context, frame: frame)
         case .text:
             var data = frame.unmaskedData
             let text = data.readString(length: data.readableBytes) ?? ""
@@ -59,12 +59,12 @@ final class WebSocketHandler: ChannelInboundHandler {
             break
         default:
             // Unknown frames are errors.
-            self.closeOnError(ctx: ctx)
+            self.closeOnError(ctx: context)
         }
     }
 
-    func channelReadComplete(ctx: ChannelHandlerContext) {
-        ctx.flush()
+    func channelReadComplete(context: ChannelHandlerContext) {
+        context.flush()
     }
 
     func send(data: Data) {
