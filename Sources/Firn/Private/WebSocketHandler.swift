@@ -21,6 +21,12 @@ final class WebSocketHandler: ChannelInboundHandler {
         handler.connect(with: self)
     }
 
+    func close() {
+        context?.eventLoop.execute {
+            _ = self.context?.close()
+        }
+    }
+
     func handlerAdded(context: ChannelHandlerContext) {
         self.context = context
         self.handler.handleOpen()
