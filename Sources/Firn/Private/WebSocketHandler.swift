@@ -15,6 +15,8 @@ final class WebSocketHandler: ChannelInboundHandler {
 
     let handler: SocketConnectionHandler
     var context: ChannelHandlerContext?
+    var pingCount: Int64 = 0
+    var lastPong: Int64?
 
     init(handler: SocketConnectionHandler) {
         self.handler = handler
@@ -30,6 +32,7 @@ final class WebSocketHandler: ChannelInboundHandler {
     func handlerAdded(context: ChannelHandlerContext) {
         self.context = context
         self.handler.handleOpen()
+        testConnectedAfterInterval()
     }
 
     func handlerRemoved(context: ChannelHandlerContext) {
@@ -44,7 +47,9 @@ final class WebSocketHandler: ChannelInboundHandler {
         case .connectionClose:
             self.receivedClose(ctx: context, frame: frame)
         case .ping:
-            self.pong(ctx: context, frame: frame)
+            self.sendPong(ctx: context, frame: frame)
+        case .pong:
+            self.receivePong(ctx: context, frame: frame)
         case .text:
             var data = frame.unmaskedData
             let text = data.readString(length: data.readableBytes) ?? ""
@@ -60,7 +65,7 @@ final class WebSocketHandler: ChannelInboundHandler {
             guard !self.handler.handle(data: data) else {
                 return
             }
-        case .continuation, .pong:
+        case .continuation:
             // We ignore these frames.
             break
         default:
@@ -115,7 +120,54 @@ final class WebSocketHandler: ChannelInboundHandler {
         }
     }
 
-    private func pong(ctx: ChannelHandlerContext, frame: WebSocketFrame) {
+    private func testConnectedAfterInterval() {
+        guard let interval = self.handler.pingInterval else { return }
+        guard let context = self.context else { return }
+
+        context.eventLoop.scheduleTask(in: .seconds(Int64(interval))) { [weak self] in
+            self?.closeIfNotConnected(context: context, onConnected: { [weak self] in
+                self?.testConnectedAfterInterval()
+            })
+        }
+    }
+
+    private func closeIfNotConnected(context: ChannelHandlerContext, onConnected: @escaping () -> Void) {
+        let ping = sendPing(context)
+        context.eventLoop.scheduleTask(in: .seconds(2)) { [ping, weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            if strongSelf.lastPong != ping {
+                self?.close()
+            }
+            else {
+                onConnected()
+            }
+        }
+    }
+
+    private func receivePong(ctx: ChannelHandlerContext, frame: WebSocketFrame) {
+        var frameData = frame.data
+        let maskingKey = frame.maskKey
+
+        if let maskingKey = maskingKey {
+            frameData.webSocketUnmask(maskingKey)
+        }
+
+        guard let ping = frameData.readInteger(as: Int64.self) else {
+            return
+        }
+        lastPong = ping
+    }
+
+    private func sendPing(_ context: ChannelHandlerContext) -> Int64 {
+        pingCount += 1
+        let frame = WebSocketFrame(fin: true, opcode: .ping, data: ByteBuffer(integer: pingCount))
+        context.write(self.wrapOutboundOut(frame), promise: nil)
+        return pingCount
+    }
+
+    private func sendPong(ctx: ChannelHandlerContext, frame: WebSocketFrame) {
         var frameData = frame.data
         let maskingKey = frame.maskKey
 
