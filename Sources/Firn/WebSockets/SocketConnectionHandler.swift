@@ -9,10 +9,12 @@ import Foundation
 
 open class SocketConnectionHandler {
     let pingInterval: Int?
+    let pongTimeout: Int
     weak var handler: WebSocketHandler?
 
-    public init(pingInterval: Int?) {
+    public init(pingInterval: Int?, pongTimeout: Int = 60) {
         self.pingInterval = pingInterval
+        self.pongTimeout = pongTimeout
     }
 
     func connect(with handler: WebSocketHandler) {

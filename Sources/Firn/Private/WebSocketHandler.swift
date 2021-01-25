@@ -133,7 +133,7 @@ final class WebSocketHandler: ChannelInboundHandler {
 
     private func closeIfNotConnected(context: ChannelHandlerContext, onConnected: @escaping () -> Void) {
         let ping = sendPing(context)
-        context.eventLoop.scheduleTask(in: .seconds(2)) { [ping, weak self] in
+        context.eventLoop.scheduleTask(in: .seconds(Int64(handler.pongTimeout))) { [ping, weak self] in
             guard let strongSelf = self else {
                 return
             }
