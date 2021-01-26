@@ -199,16 +199,18 @@ public final class API {
 
     lazy var sslContext: NIOSSLContext? = {
         switch self.ssl {
-        case let .fileSystem(keyPath, certPath):
+        case let .fileSystem(keyPath, certPaths):
             do {
                 let privateKey = NIOSSLPrivateKeySource.privateKey(
                     try NIOSSLPrivateKey(file: keyPath, format: .pem)
                 )
-                let certificate = NIOSSLCertificateSource.certificate(
-                    try NIOSSLCertificate(file: certPath, format: .pem)
-                )
+                let certificates = try certPaths.map { path in
+                    NIOSSLCertificateSource.certificate(
+                        try NIOSSLCertificate(file: path, format: .pem)
+                    )
+                }
 
-                let configuration = TLSConfiguration.forServer(certificateChain: [certificate], privateKey: privateKey)
+                let configuration = TLSConfiguration.forServer(certificateChain: certificates, privateKey: privateKey)
                 return try NIOSSLContext(configuration: configuration)
             }
             catch {

@@ -7,5 +7,5 @@
 
 public enum SSL {
     case none
-    case fileSystem(keyPath: String, certPath: String)
+    case fileSystem(keyPath: String, certPaths: [String])
 }
