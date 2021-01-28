@@ -119,25 +119,39 @@ public final class API {
 
             let channel = try { () -> Channel in
                 let address: SocketAddress
-                var sAddr = sockaddr_in()
-                switch port {
-                case .automatic:
-                    sAddr.sin_port = 0
-                case .specific(let port):
-                    sAddr.sin_port = port.bigEndian
-                }
                 switch host {
                 case .any:
-                    sAddr.sin_family = sa_family_t(AF_INET)
-                    sAddr.sin_addr.s_addr = INADDR_ANY.bigEndian
+                    var sAddr = sockaddr_in6()
+                    sAddr.sin6_family = sa_family_t(AF_INET6)
+                    sAddr.sin6_addr = in6addr_any
+                    switch port {
+                    case .automatic:
+                        sAddr.sin6_port = 0
+                    case .specific(let port):
+                        sAddr.sin6_port = port.bigEndian
+                    }
                     address = SocketAddress(sAddr, host: "")
                 case .ipv4(let ip):
+                    var sAddr = sockaddr_in()
                     sAddr.sin_family = sa_family_t(AF_INET)
                     inet_pton(AF_INET, ip, &sAddr.sin_addr)
+                    switch port {
+                    case .automatic:
+                        sAddr.sin_port = 0
+                    case .specific(let port):
+                        sAddr.sin_port = port.bigEndian
+                    }
                     address = SocketAddress(sAddr, host: "")
                 case .ipv6(let ip):
-                    sAddr.sin_family = sa_family_t(AF_INET)
-                    inet_pton(AF_INET6, ip, &sAddr.sin_addr)
+                    var sAddr = sockaddr_in6()
+                    sAddr.sin6_family = sa_family_t(AF_INET6)
+                    inet_pton(AF_INET6, ip, &sAddr.sin6_addr)
+                    switch port {
+                    case .automatic:
+                        sAddr.sin6_port = 0
+                    case .specific(let port):
+                        sAddr.sin6_port = port.bigEndian
+                    }
                     address = SocketAddress(sAddr, host: "")
                 }
                 return try bootstrap.bind(to: address).wait()
